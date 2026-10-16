@@ -2,6 +2,13 @@
 
 A lightweight Windows 11 desktop app for converting YouTube links to **MP3, MP4, AVI, WAV, or FLAC** — wrapped in a native Fluent UI with real Mica/Acrylic materials, so it blends right into Windows 11.
 
+## Screenshots
+<img width="1180" height="756" alt="Screenshot 2026-10-16 224756" src="https://github.com/user-attachments/assets/52ce5a0d-2fde-404a-a90f-0839cea3096a" />
+<img width="1176" height="760" alt="Screenshot 2026-10-16 224743" src="https://github.com/user-attachments/assets/ed70c28b-e72e-433e-b4e8-74f20388e4a8" />
+<img width="1176" height="758" alt="Screenshot 2026-10-16 224733" src="https://github.com/user-attachments/assets/f3f48abe-a87a-414e-a575-65619c04c386" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-16 224715" src="https://github.com/user-attachments/assets/d9a34749-188d-4ef9-bd40-d3feb829d31d" />
+
+
 Downloads are powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/), which RetroRIP fetches automatically on first launch.
 
 
