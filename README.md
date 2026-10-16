@@ -4,7 +4,6 @@ A lightweight Windows 11 desktop app for converting YouTube links to **MP3, MP4,
 
 Downloads are powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/), which RetroRIP fetches automatically on first launch.
 
-![RetroRIP icon](assets/icon.png)
 
 ## Features
 
