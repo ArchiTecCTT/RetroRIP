@@ -71,21 +71,10 @@ async function waitFor(fn, ms, every = 2000) {
     const files = fs.readdirSync(bin);
     for (const f of ['yt-dlp.exe', 'ffmpeg.exe', 'ffprobe.exe', 'yt-dlp.checked']) if (!files.includes(f)) throw new Error('missing ' + f + ' in ' + files.join(','));
     if (files.some((f) => f.endsWith('.part') || f === 'ffmpeg.zip' || f === 'ffmpeg-tmp')) throw new Error('leftovers: ' + files.join(','));
-    if (!s.ytdlp.startsWith(bin) || !s.ffmpeg.startsWith(bin)) throw new Error('not using downloaded tools: ' + JSON.stringify(s));
+    if (!s.ytdlp.toLowerCase().startsWith(bin.toLowerCase()) || !s.ffmpeg.toLowerCase().startsWith(bin.toLowerCase())) throw new Error('not using downloaded tools: ' + JSON.stringify(s));
     return `${Math.round((Date.now() - t0) / 1000)} s, bin = ${files.join(', ')}`;
   });
   await shot('02-tools-ready');
-
-  await step('Window cannot be navigated to a website', async () => {
-    const before = page.url();
-    await page.evaluate(() => { location.href = 'https://example.com/'; });
-    await sleep(2000);
-    const opened = await page.evaluate(() => String(window.open('https://example.com/')));
-    await sleep(1000);
-    if (page.url() !== before) throw new Error('navigated to ' + page.url());
-    if (app.windows().length !== 1) throw new Error('a new window opened');
-    return 'still on the app page; window.open returned ' + opened;
-  });
 
   await step('Dropping a link fills the link box', async () => {
     await page.evaluate(() => {
@@ -214,12 +203,23 @@ async function waitFor(fn, ms, every = 2000) {
     return 'exit code ' + code;
   });
 
+  // Last UI test: after a blocked navigation Playwright waits forever before clicks, so the
+  // quit test below starts its download through window.api instead of the UI.
+  await step('Window cannot be navigated to a website', async () => {
+    const before = page.url();
+    await page.evaluate(() => { location.href = 'https://example.com/'; });
+    await sleep(2000);
+    const opened = await page.evaluate(() => String(window.open('https://example.com/')));
+    await sleep(1000);
+    if (page.url() !== before) throw new Error('navigated to ' + page.url());
+    if (app.windows().length !== 1) throw new Error('a new window opened');
+    const title = await page.evaluate(() => document.body.innerText.includes('Settings'));
+    if (!title) throw new Error('app page no longer shows its UI');
+    return 'still on the app page and UI intact; window.open returned ' + opened;
+  });
+
   await step('Quitting during a download leaves no yt-dlp/ffmpeg running', async () => {
-    await nav('Convert');
-    await page.getByRole('combobox').first().click();
-    await page.getByRole('option', { name: 'MP4' }).click();
-    await page.getByPlaceholder(/youtube/).fill(BIG);
-    await page.getByRole('button', { name: 'Convert' }).last().click();
+    await page.evaluate((u) => window.api.convertStart({ id: 'quit', url: u, format: 'mp4', quality: 'low' }), BIG);
     if (!(await waitFor(() => count('yt-dlp.exe') > 0, 60000, 1000))) throw new Error('download never started');
     await sleep(4000);
     await app.close();
