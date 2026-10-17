@@ -1,0 +1,32 @@
+# Test-only: runs the PR's manual checklist against the real packaged app on GitHub's Windows runner.
+name: Windows checklist
+
+on:
+  push:
+    branches: ['test/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checklist:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run electron:build -- --publish never
+      - name: Install Playwright (test tool only, not part of the app)
+        run: npm install --no-save playwright-core@1.56.1
+      - name: Run checklist
+        run: node .github/checklist/checklist.js checklist-out
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checklist-results
+          path: checklist-out
