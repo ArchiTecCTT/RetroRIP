@@ -121,8 +121,8 @@ const useStyles = makeStyles({
 });
 
 const FORMATS = ['mp3', 'mp4', 'avi', 'wav', 'flac'];
+const AUDIO_FORMATS = ['mp3', 'wav', 'flac'];
 function uid() { return 'j' + Date.now() + Math.random().toString(36).slice(2, 7); }
-function fileUrl(p) { return 'file:///' + p.replace(/\\/g, '/'); }
 function friendlyError(raw) {
   if (!raw) return 'Unknown error. Please try again.';
   if (/private/i.test(raw)) {
@@ -186,11 +186,37 @@ export default function App() {
     });
   }, []);
 
+  // Dropping a link (e.g. dragged from the browser) fills the link box.
+  useEffect(() => {
+    const over = (e) => e.preventDefault();
+    const drop = (e) => {
+      e.preventDefault();
+      const text = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+      const link = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
+      if (link) {
+        setUrlInput(link);
+        setActive('convert');
+      }
+    };
+    window.addEventListener('dragover', over);
+    window.addEventListener('drop', drop);
+    return () => {
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('drop', drop);
+    };
+  }, []);
+
   const updateSettings = useCallback(async (patch) => {
     const s = await window.api.settingsSet({ ...settings, ...patch });
     setSettings(s);
     return s;
   }, [settings]);
+
+  // Switching between audio and video formats picks that kind's default quality from Settings.
+  const chooseFormat = (f) => {
+    setFormat(f);
+    setQuality(AUDIO_FORMATS.includes(f) ? settings.audioQuality : settings.videoQuality);
+  };
 
   const createJob = (url) => ({
     id: uid(), url, format, quality, status: 'queued', progress: 0,
@@ -211,10 +237,13 @@ export default function App() {
     setJobs((prev) => prev.map((j) => (j.id === job.id
       ? { ...j, status: 'downloading', error: null, downloadingSince: Date.now() }
       : j)));
-    const r = await window.api.convertStart({
-      id: job.id, url: job.url, format: job.format, quality: job.quality,
-      audioFolder: settings.audioFolder, videoFolder: settings.videoFolder,
-    });
+    let r;
+    try {
+      r = await window.api.convertStart({ id: job.id, url: job.url, format: job.format, quality: job.quality });
+    } catch (e) {
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: 'failed', error: String(e && e.message || e) } : j)));
+      return;
+    }
     if (r && r.started) {
       setJobs((prev) => prev.map((j) => (j.id === job.id
         ? { ...j, status: 'downloading', downloadingSince: j.downloadingSince || Date.now() }
@@ -329,7 +358,7 @@ export default function App() {
             {active === 'convert' && (
               <ConvertView
                 styles={styles} urlInput={urlInput} setUrlInput={setUrlInput}
-                format={format} setFormat={setFormat} quality={quality} setQuality={setQuality}
+                format={format} setFormat={chooseFormat} quality={quality} setQuality={setQuality}
                 handleConvert={handleConvert} addToQueue={addToQueue} jobs={jobs} handleCancel={handleCancel} removeJob={removeJob}
                 tools={tools} onInstallTools={installTools} toolsInstalling={toolsInstalling}
               />
@@ -345,7 +374,7 @@ export default function App() {
             )}
             {active === 'settings' && (
               <SettingsView
-                styles={styles} settings={settings} updateSettings={updateSettings}
+                styles={styles} settings={settings} updateSettings={updateSettings} setSettings={setSettings}
                 setAboutOpen={setAboutOpen} tools={tools} toolsInstalling={toolsInstalling}
                 onInstallTools={installTools}
               />
@@ -660,9 +689,9 @@ function LibraryView({ styles, settings, libraryFiles, libraryFolder, setLibrary
                 {(f.size / 1024 / 1024).toFixed(2)} MB · {new Date(f.mtime).toLocaleDateString()}
               </Text>
               {isVideo ? (
-                <video controls className={styles.preview} src={fileUrl(f.path)} preload="metadata" />
+                <video controls className={styles.preview} src={f.url} preload="metadata" />
               ) : (
-                <audio controls className={styles.preview} src={fileUrl(f.path)} preload="metadata" />
+                <audio controls className={styles.preview} src={f.url} preload="metadata" />
               )}
               <div className={styles.row} style={{ marginTop: 8 }}>
                 <Tooltip content="Open file" relationship="label">
@@ -690,10 +719,19 @@ function LibraryView({ styles, settings, libraryFiles, libraryFolder, setLibrary
   );
 }
 
-function SettingsView({ styles, settings, updateSettings, setAboutOpen, tools, toolsInstalling, onInstallTools }) {
+function SettingsView({ styles, settings, updateSettings, setSettings, setAboutOpen, tools, toolsInstalling, onInstallTools }) {
+  const [updating, setUpdating] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState('');
   const pick = async (key) => {
-    const p = await window.api.pickFolder();
-    if (p) updateSettings({ [key]: p });
+    const s = await window.api.pickFolder(key);
+    if (s) setSettings(s);
+  };
+  const updateEngine = async () => {
+    setUpdating(true);
+    setUpdateMsg('');
+    const r = await window.api.toolsUpdate();
+    setUpdateMsg(r.message);
+    setUpdating(false);
   };
 
   const themeLabel = settings.theme === 'light' ? 'Light mode' : settings.theme === 'dark' ? 'Dark Mode' : 'System';
@@ -771,7 +809,13 @@ function SettingsView({ styles, settings, updateSettings, setAboutOpen, tools, t
           <Button appearance="primary" icon={<ArrowSyncRegular />} disabled={toolsInstalling} onClick={onInstallTools}>
             {toolsInstalling ? 'Installing…' : 'Install components'}
           </Button>
+          <Button className={styles.accentButton} disabled={!(tools && tools.ytdlp) || updating || toolsInstalling} onClick={updateEngine}>
+            {updating ? 'Checking…' : 'Update yt-dlp'}
+          </Button>
         </div>
+        {updateMsg && (
+          <Text size={200} style={{ color: tokens.colorNeutralForeground3, display: 'block', marginTop: 8 }}>{updateMsg}</Text>
+        )}
       </Card>
 
       <Card className={styles.card}>
