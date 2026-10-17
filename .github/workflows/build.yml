@@ -1,0 +1,58 @@
+# Builds the portable .exe on GitHub's own Windows machines, straight from the code in this repo.
+# On a published release it attaches the .exe, its SHA-256 checksum and a signed "build provenance"
+# record, so anyone can check the download was built from this source and not changed afterwards.
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write      # attach the .exe to the release
+      id-token: write      # sign the build provenance record
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run electron:build -- --publish never
+
+      - name: Write SHA-256 checksum
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/*.exe
+          $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($exe.Name)" | Out-File -Encoding ascii "$($exe.FullName).sha256"
+          "$hash  $($exe.Name)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RetroRIP-windows
+          path: release/*.exe*
+
+      - if: github.event_name == 'release'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/*.exe
+
+      - if: github.event_name == 'release'
+        name: Attach to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = Get-ChildItem release/*.exe
+          gh release upload "${{ github.event.release.tag_name }}" $exe.FullName "$($exe.FullName).sha256" --clobber
