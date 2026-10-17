@@ -4,6 +4,7 @@ const { _electron: electron } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
+const http = require('http');
 
 const out = path.resolve(process.argv[2] || 'checklist-out');
 fs.mkdirSync(out, { recursive: true });
@@ -13,8 +14,12 @@ const userData = path.join(process.env.APPDATA, 'RetroRIP'); // same folder as "
 const audioDir = 'C:\\t\\Music 100% #1';
 const videoDir = "C:\\t\\Videos [x] 'q'";
 const YT = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'; // "Me at the zoo", 19 s
-const SMALL = 'https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4';
-const BIG = 'https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov';
+// YouTube usually blocks GitHub's machines ("confirm you're not a bot"), so the download tests use
+// videos made on the runner and served from a local web server. "slow" files are sent at ~300 KB/s
+// so Cancel and Quit can be tested mid-download.
+const mediaDir = 'C:\\t\\media';
+let SMALL = null;
+let BIG = null;
 
 const results = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -35,6 +40,22 @@ async function waitFor(fn, ms, every = 2000) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) { const v = await fn(); if (v) return v; await sleep(every); }
   return null;
+}
+
+function startMediaServer() {
+  const server = http.createServer((req, res) => {
+    const name = path.basename(new URL(req.url, 'http://x').pathname);
+    const f = path.join(mediaDir, name);
+    if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': fs.statSync(f).size });
+    if (req.method === 'HEAD') return res.end();
+    const stream = fs.createReadStream(f, { highWaterMark: 64 * 1024 });
+    res.on('close', () => stream.destroy());
+    if (!name.startsWith('slow')) return stream.pipe(res);
+    stream.on('data', (c) => { stream.pause(); res.write(c); setTimeout(() => stream.resume(), 200); });
+    stream.on('end', () => res.end());
+  });
+  return new Promise((r) => server.listen(0, '127.0.0.1', () => r(`http://127.0.0.1:${server.address().port}/`)));
 }
 
 (async () => {
@@ -76,6 +97,20 @@ async function waitFor(fn, ms, every = 2000) {
   });
   await shot('02-tools-ready');
 
+  await step('Make test videos with the downloaded ffmpeg', async () => {
+    const ffmpeg = path.join(userData, 'bin', 'ffmpeg.exe');
+    fs.mkdirSync(mediaDir, { recursive: true });
+    const make = (name, secs, size, rate) => execFileSync(ffmpeg, ['-y', '-loglevel', 'error',
+      '-f', 'lavfi', '-i', `testsrc2=duration=${secs}:size=${size}:rate=25`, '-f', 'lavfi', '-i', `sine=frequency=440:duration=${secs}`,
+      '-c:v', 'libx264', '-b:v', rate, '-c:a', 'aac', '-shortest', path.join(mediaDir, name)]);
+    make('clip.mp4', 8, '640x360', '500k');
+    make('slow-big.mp4', 60, '1280x720', '2M');
+    const base = await startMediaServer();
+    SMALL = base + 'clip.mp4';
+    BIG = base + 'slow-big.mp4';
+    return fs.readdirSync(mediaDir).map((f) => `${f} ${(fs.statSync(path.join(mediaDir, f)).size / 1e6).toFixed(1)} MB`).join(', ') + ' at ' + base;
+  });
+
   await step('Dropping a link fills the link box', async () => {
     await page.evaluate(() => {
       const dt = new DataTransfer();
@@ -116,32 +151,27 @@ async function waitFor(fn, ms, every = 2000) {
     return csp;
   });
 
-  // Starts a download through the UI and waits for it to finish. Tries YouTube first; GitHub's
-  // machines are often blocked by YouTube's bot check, so falls back to a direct video file.
-  async function download(fmt, folder, ext) {
-    const notes = [];
-    for (const url of [YT, SMALL]) {
-      const before = await page.evaluate(() => [window.__done.length, window.__failed.length]);
-      await nav('Convert');
-      await page.getByRole('combobox').first().click();
-      await page.getByRole('option', { name: fmt }).click();
-      await page.getByPlaceholder(/youtube/).fill(url);
-      await page.getByRole('button', { name: 'Convert' }).last().click();
-      const r = await waitFor(() => page.evaluate(([d, f]) => (window.__done.length > d ? { ok: window.__done[d] }
-        : window.__failed.length > f ? { err: window.__failed[f].error } : null), before), 8 * 60000);
-      if (r && r.ok) {
-        const files = fs.readdirSync(folder).filter((f) => f.toLowerCase().endsWith(ext));
-        if (!files.length) throw new Error(`done, but no ${ext} in ${folder}: ${fs.readdirSync(folder).join(', ')}`);
-        return `${notes.join(' ')}${url === YT ? 'YouTube' : 'direct file'} -> ${folder}\\${files[files.length - 1]}`;
-      }
-      notes.push(`[${url === YT ? 'YouTube' : 'direct'} failed: ${(r && r.err || 'timeout').split('\n').pop().slice(0, 160)}]`);
-    }
-    throw new Error(notes.join(' '));
+  // Starts a download through the UI and waits for it to finish.
+  async function download(fmt, folder, ext, url) {
+    if (!url) throw new Error('no test video');
+    const before = await page.evaluate(() => [window.__done.length, window.__failed.length]);
+    await nav('Convert');
+    await page.getByRole('combobox').first().click();
+    await page.getByRole('option', { name: fmt }).click();
+    await page.getByPlaceholder(/youtube/).fill(url);
+    await page.getByRole('button', { name: 'Convert' }).last().click();
+    const r = await waitFor(() => page.evaluate(([d, f]) => (window.__done.length > d ? { ok: window.__done[d] }
+      : window.__failed.length > f ? { err: window.__failed[f].error } : null), before), 8 * 60000);
+    if (!r) throw new Error('timed out');
+    if (r.err) throw new Error(r.err.split('\n').pop());
+    const files = fs.readdirSync(folder).filter((f) => f.toLowerCase().endsWith(ext));
+    if (!files.length) throw new Error(`done, but no ${ext} in ${folder}: ${fs.readdirSync(folder).join(', ')}`);
+    return `${folder}\\${files[files.length - 1]}`;
   }
 
-  await step('MP3 download (folder name has % and #)', () => download('MP3', audioDir, '.mp3'));
+  await step('MP3 download (folder name has % and #)', () => download('MP3', audioDir, '.mp3', SMALL));
   await nav('Downloads'); await shot('03-downloads');
-  await step("MP4 download (folder name has [brackets] and 'apostrophes')", () => download('MP4', videoDir, '.mp4'));
+  await step("MP4 download (folder name has [brackets] and 'apostrophes')", () => download('MP4', videoDir, '.mp4', SMALL));
 
   await step('Cancel stops every yt-dlp/ffmpeg process and shows Cancelled', async () => {
     const failedBefore = await page.evaluate(() => window.__failed.length);
@@ -150,8 +180,10 @@ async function waitFor(fn, ms, every = 2000) {
     await page.getByRole('option', { name: 'MP4' }).click();
     await page.getByPlaceholder(/youtube/).fill(BIG);
     await page.getByRole('button', { name: 'Convert' }).last().click();
+    if (!BIG) throw new Error('no test video');
     const running = await waitFor(() => (count('yt-dlp.exe') > 0 ? count('yt-dlp.exe') : 0), 60000, 1000);
-    await sleep(6000);
+    await sleep(8000);
+    const progress = await page.getByText(/^\d+%$/).first().textContent().catch(() => '?');
     const during = count('yt-dlp.exe');
     await nav('Downloads');
     await page.getByRole('button', { name: 'Cancel' }).first().click();
@@ -164,7 +196,7 @@ async function waitFor(fn, ms, every = 2000) {
     if (after.ytdlp || after.ffmpeg) throw new Error(`still running after Cancel: ${JSON.stringify(after)} (had ${during} yt-dlp.exe)`);
     if (failedAfter !== failedBefore) throw new Error('cancel was reported as a failure');
     if (!shown) throw new Error('no Cancelled badge');
-    return `${during} yt-dlp.exe process(es) while downloading, 0 after Cancel`;
+    return `${during} yt-dlp.exe process(es) while downloading (at ${progress}), 0 after Cancel`;
   });
 
   await step('Library preview plays a file whose folder has % and #', async () => {
@@ -203,6 +235,14 @@ async function waitFor(fn, ms, every = 2000) {
     return 'exit code ' + code;
   });
 
+  await step('(info) YouTube from a GitHub machine', async () => {
+    const before = await page.evaluate(() => [window.__done.length, window.__failed.length]);
+    await page.evaluate((u) => window.api.convertStart({ id: 'yt', url: u, format: 'mp3', quality: 'low' }), YT);
+    const r = await waitFor(() => page.evaluate(([d, f]) => (window.__done.length > d ? 'downloaded fine'
+      : window.__failed.length > f ? 'blocked: ' + window.__failed[f].error.split('\n').pop().slice(0, 120) : null), before), 3 * 60000);
+    return (r || 'timed out') + ' (not counted: YouTube often blocks datacenter machines)';
+  });
+
   // Last UI test: after a blocked navigation Playwright waits forever before clicks, so the
   // quit test below starts its download through window.api instead of the UI.
   await step('Window cannot be navigated to a website', async () => {
@@ -219,14 +259,17 @@ async function waitFor(fn, ms, every = 2000) {
   });
 
   await step('Quitting during a download leaves no yt-dlp/ffmpeg running', async () => {
+    if (!BIG) throw new Error('no test video');
     await page.evaluate((u) => window.api.convertStart({ id: 'quit', url: u, format: 'mp4', quality: 'low' }), BIG);
     if (!(await waitFor(() => count('yt-dlp.exe') > 0, 60000, 1000))) throw new Error('download never started');
-    await sleep(4000);
+    await sleep(6000);
+    const during = count('yt-dlp.exe');
+    if (!during) throw new Error('download had already stopped before quitting');
     await app.close();
     await sleep(5000);
     const left = { ytdlp: count('yt-dlp.exe'), ffmpeg: count('ffmpeg.exe') };
     if (left.ytdlp || left.ffmpeg) throw new Error('left running: ' + JSON.stringify(left));
-    return 'none left';
+    return `${during} yt-dlp.exe while downloading, none left after quit`;
   });
   await app.close().catch(() => {});
 
@@ -234,9 +277,8 @@ async function waitFor(fn, ms, every = 2000) {
     const dir = "C:\\t\\O'Brien [test]";
     fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'src', 'hello.txt'), 'hi');
-    execFileSync('powershell.exe', ['-NoProfile', '-Command', 'Compress-Archive -LiteralPath $env:SRC -DestinationPath $env:ZIP -Force'],
-      { env: { ...process.env, SRC: path.join(dir, 'src'), ZIP: path.join(dir, 'a.zip') } });
     const tar = path.join(process.env.SystemRoot, 'System32', 'tar.exe');
+    execFileSync(tar, ['-a', '-cf', path.join(dir, 'a.zip'), '-C', dir, 'src']);
     fs.mkdirSync(path.join(dir, 'out'), { recursive: true });
     execFileSync(tar, ['-xf', path.join(dir, 'a.zip'), '-C', path.join(dir, 'out')]);
     if (fs.readFileSync(path.join(dir, 'out', 'src', 'hello.txt'), 'utf8') !== 'hi') throw new Error('bad extract');
