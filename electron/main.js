@@ -488,8 +488,9 @@ ipcMain.handle('convert:start', async (_e, payload) => {
   } else {
     if (fmt === 'mp4') {
       if (q === 'high') args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
-      else if (q === 'medium') args.push('-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]');
-      else args.push('-f', 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]');
+      // "<=?" also accepts videos whose height is unknown (common outside YouTube) instead of failing.
+      else if (q === 'medium') args.push('-f', 'bestvideo[height<=?720][ext=mp4]+bestaudio[ext=m4a]/best[height<=?720]');
+      else args.push('-f', 'bestvideo[height<=?480][ext=mp4]+bestaudio[ext=m4a]/best[height<=?480]');
       args.push('--merge-output-format', 'mp4');
     } else if (fmt === 'avi') {
       args.push('-f', 'bestvideo+bestaudio/best');
