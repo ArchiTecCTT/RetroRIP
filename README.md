@@ -28,7 +28,7 @@ Downloads are powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg]
 
 ## Download (ready to run)
 
-Download `RetroRIP-1.0.0.exe` from the Releases page and double-click it — it's a portable build, no installation required.
+Download `RetroRIP-1.1.0.exe` from the Releases page and double-click it — it's a portable build, no installation required.
 
 > On first launch Windows SmartScreen may warn that the app is unsigned: choose **More info → Run anyway**. RetroRIP will then download yt-dlp and ffmpeg into its app-data folder (checking each download against its published SHA-256 checksum), so the first start needs an internet connection.
 
