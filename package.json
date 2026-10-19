@@ -1,6 +1,6 @@
 {
   "name": "retrorip",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "RetroRIP \u2014 YouTube to MP3/MP4/AVI/WAV/FLAC converter",
   "main": "electron/main.js",
   "scripts": {
@@ -39,13 +39,13 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.5",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0",
-    "vite": "^5.4.0",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "vite": "^6.4.4",
     "wait-on": "^8.0.5"
   },
   "author": "Mr Knight",
-  "license": "MIT"
+  "license": "GPL-3.0-only"
 }

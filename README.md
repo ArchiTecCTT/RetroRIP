@@ -18,21 +18,28 @@ Downloads are powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg]
 - **Downloads** — Live progress for active downloads, a green **Done** badge for finished files, and a red exclamation indicator for failures — hover it to see exactly why a download failed.
 - **Queue handoff** — Started downloads show a temporary download indicator in the Queue, then move over to Downloads to keep the list clean.
 - **Library** — Browse, preview, open, and delete your downloaded audio and video.
-- **Settings** — Separate default Audio/Video folders, Light / Dark / System theme, system or custom accent colors (Red, Pink, Matcha, Purple, Blue, White), and default download quality.
+- **Settings** — Separate default Audio/Video folders, Light / Dark / System theme, system or custom accent colors (Red, Pink, Matcha, Purple, Blue, White), default download quality, and an **Update yt-dlp** button (RetroRIP also checks for a new yt-dlp once a week).
 - **Windows 11 native feel** — Mica in light mode, Acrylic in dark mode, collapsible Fluent navigation pane, and a custom title bar with the RetroRIP cassette icon.
 
 ## Download (ready to run)
 
 Download `RetroRIP-1.0.0.exe` from the Releases page and double-click it — it's a portable build, no installation required.
 
-> On first launch Windows SmartScreen may warn that the app is unsigned: choose **More info → Run anyway**. RetroRIP will then download yt-dlp and ffmpeg into its app-data folder, so the first start needs an internet connection.
+> On first launch Windows SmartScreen may warn that the app is unsigned: choose **More info → Run anyway**. RetroRIP will then download yt-dlp and ffmpeg into its app-data folder (checking each download against its published SHA-256 checksum), so the first start needs an internet connection.
+
+### Check your download
+
+Release builds are made by GitHub Actions straight from this repository's code ([workflow](.github/workflows/build.yml)), not on a personal computer. To check that the `.exe` you downloaded is exactly that build:
+
+- **Checksum:** in PowerShell, run `Get-FileHash .\RetroRIP-1.0.0.exe` and compare the result with the `.sha256` file attached to the release (upper or lower case doesn't matter).
+- **Build provenance:** with the [GitHub CLI](https://cli.github.com/), run `gh attestation verify RetroRIP-1.0.0.exe --repo iamkrisstan2000/RetroRIP`. It confirms which commit and workflow produced the file.
 
 ## Run from source
 
 Requirements: Node.js 20+ (npm) and, for packaging, Windows 10/11.
 
 ```bash
-npm install --legacy-peer-deps
+npm ci
 
 # Develop (Vite dev server + Electron)
 npm run electron:dev
@@ -60,7 +67,7 @@ RetroRIP is a tool for downloading media you own or have permission to download.
 
 ## Credits
 
-This project was created with AI tools by **Mr Knight** — October 2026.
+Made by **Mr KNIGHT** · Made possible with AI tools. · October 2026
 
 ## Support Development
 
@@ -71,3 +78,7 @@ future development, voluntary donations are welcome.
 
 Donations are entirely optional and are not required
 to download or use this application.
+
+## License
+
+[GNU GPL-3.0](LICENSE) © 2026 Mr Knight
