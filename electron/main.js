@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -347,6 +347,12 @@ function createWindow() {
 app.whenReady().then(() => {
   if (!gotLock) return;
   try { nativeTheme.on('updated', applyMaterial); } catch (e) {}
+  // Follow Windows accent changes immediately, without restarting the app.
+  try {
+    systemPreferences.on('accent-color-changed', (_e, color) => {
+      send('system:accent-changed', typeof color === 'string' ? color : accentColor());
+    });
+  } catch (e) {}
   createWindow();
 });
 app.on('second-instance', () => {
@@ -374,6 +380,15 @@ const SETTING_CHOICES = {
   audioQuality: QUALITIES,
   videoQuality: QUALITIES,
 };
+
+// The real Windows accent color (hex RRGGBBAA on Windows), so "Use system accent" can follow it.
+function accentColor() {
+  try {
+    const c = systemPreferences.getAccentColor();
+    return typeof c === 'string' ? c : null;
+  } catch (e) { return null; }
+}
+ipcMain.handle('system:accent', () => accentColor());
 
 ipcMain.handle('settings:get', () => loadSettings());
 ipcMain.handle('settings:set', (_e, patch) => {

@@ -2,6 +2,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   settingsGet: () => ipcRenderer.invoke('settings:get'),
+  accentGet: () => ipcRenderer.invoke('system:accent'),
+  onAccentChanged: (cb) => ipcRenderer.on('system:accent-changed', (_e, d) => cb(d)),
   settingsSet: (s) => ipcRenderer.invoke('settings:set', s),
   pickFolder: (key) => ipcRenderer.invoke('dialog:pickFolder', key),
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
