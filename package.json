@@ -1,7 +1,7 @@
 {
   "name": "retrorip",
-  "version": "1.0.0",
-  "description": "RetroRIP — YouTube to MP3/MP4/AVI/WAV/FLAC converter",
+  "version": "1.1.0",
+  "description": "RetroRIP \u2014 YouTube to MP3/MP4/AVI/WAV/FLAC converter",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -47,5 +47,5 @@
     "wait-on": "^8.0.5"
   },
   "author": "Mr Knight",
-  "license": "MIT"
+  "license": "GPL-3.0-only"
 }

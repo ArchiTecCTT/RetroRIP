@@ -2,15 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FluentProvider, Button, Input, Text, Title2, Title3,
   Card, ProgressBar, Tooltip, Badge, Dropdown, Option,
-  makeStyles, tokens, Dialog, DialogTrigger, DialogSurface,
-  DialogTitle, DialogBody, DialogActions, DialogContent, Field,
+  makeStyles, tokens, Field,
   Spinner,
 } from '@fluentui/react-components';
 import {
   ArrowDownloadRegular, VideoRegular, FolderRegular,
   SettingsRegular,
   PlayRegular, DeleteRegular, Open20Regular,
-  InfoRegular, CheckmarkCircleRegular, WarningFilled,
+  CheckmarkCircleRegular, WarningFilled,
   DismissRegular, AddRegular, ArrowSyncRegular, Document20Regular,
   LineHorizontal3Regular, ErrorCircleFilled, ClockRegular,
 } from '@fluentui/react-icons';
@@ -49,20 +48,25 @@ const useStyles = makeStyles({
   },
   contentWrap: {
     flex: 1, display: 'flex', overflow: 'hidden',
-    padding: '4px 12px 12px 8px',
+    padding: '4px 0 0 8px',
   },
   contentCard: {
     flex: 1, overflow: 'auto', minWidth: 0,
     backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: '12px',
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderLeft: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: '12px 0 0 0',
     padding: '20px 24px',
   },
   sidebar: {
     display: 'flex', flexDirection: 'column', transition: 'width 0.18s cubic-bezier(0.2,0,0,1)',
     overflow: 'hidden', flexShrink: 0,
   },
-  sidebarTop: { padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: '2px' },
+  paneHeader: {
+    height: '44px', display: 'flex', alignItems: 'center', flexShrink: 0,
+    paddingLeft: '12px', paddingRight: '12px',
+  },
+  sidebarTop: { padding: '2px 8px 6px', display: 'flex', flexDirection: 'column', gap: '2px' },
   sidebarBottom: { padding: '6px 8px 10px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' },
   navItem: {
     display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '4px',
@@ -144,13 +148,13 @@ export default function App() {
   const [urlInput, setUrlInput] = useState('');
   const [format, setFormat] = useState('mp3');
   const [quality, setQuality] = useState('high');
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [tools, setTools] = useState(null);
   const [toolsInstalling, setToolsInstalling] = useState(false);
+  const [systemAccent, setSystemAccent] = useState(null);
 
   const theme = useMemo(
-    () => (settings ? getTheme(settings.theme, settings.accent) : getTheme('system', 'system')),
-    [settings]
+    () => (settings ? getTheme(settings.theme, settings.accent, systemAccent) : getTheme('system', 'system', systemAccent)),
+    [settings, systemAccent]
   );
 
   useEffect(() => {
@@ -159,6 +163,9 @@ export default function App() {
       setQuality(s.audioQuality || 'high');
     });
     window.api.toolsStatus().then(setTools);
+    // "Use system accent" follows the real Windows accent color, live.
+    if (window.api.accentGet) window.api.accentGet().then((c) => { if (c) setSystemAccent(c); }).catch(() => {});
+    if (window.api.onAccentChanged) window.api.onAccentChanged((c) => { if (c) setSystemAccent(c); });
   }, []);
 
   useEffect(() => {
@@ -305,21 +312,26 @@ export default function App() {
     <FluentProvider theme={theme} style={{ height: '100%', background: 'transparent' }}>
       <div className={styles.root} style={{ backgroundColor: isDark ? 'rgba(20, 20, 20, 0.80)' : 'rgba(246, 246, 246, 0.95)' }}>
           <div className={`${styles.titleBar} drag`}>
-            <button
-              className={`${styles.hamburger} no-drag`}
-              onClick={() => setCollapsed((c) => !c)}
-              title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-            >
-              <LineHorizontal3Regular style={{ fontSize: 18 }} />
-            </button>
             <div className={styles.titleGroup}>
               <img src={appIcon} alt="" draggable={false} className={styles.titleIcon} />
               <Text weight="semibold" size={300}>RetroRIP</Text>
             </div>
           </div>
           <div className={styles.bodyRow}>
-          <div className={styles.sidebar} style={{ width: collapsed ? 56 : 216 }}>
-            <div className={styles.sidebarTop}>
+          <div className={styles.sidebar} style={{ width: collapsed ? 48 : 216 }}>
+            <div
+              className={styles.paneHeader}
+              style={{ justifyContent: 'flex-start', paddingLeft: 12, paddingRight: collapsed ? 4 : 12 }}
+            >
+              <button
+                className={`${styles.hamburger} no-drag`}
+                onClick={() => setCollapsed((c) => !c)}
+                title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+              >
+                <LineHorizontal3Regular style={{ fontSize: 18 }} />
+              </button>
+            </div>
+            <div className={styles.sidebarTop} style={{ paddingLeft: 12, paddingRight: collapsed ? 4 : 8 }}>
               {navItems.map((n) => (
                 <button
                   key={n.key}
@@ -338,7 +350,7 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div className={styles.sidebarBottom}>
+            <div className={styles.sidebarBottom} style={{ paddingLeft: 12, paddingRight: collapsed ? 4 : 8 }}>
               <button
                 className={`${styles.navItem} ${active === 'settings' ? styles.navItemActive : ''} ${active === 'settings' && collapsed ? styles.navItemActiveCollapsed : ''} no-drag`}
                 onClick={() => setActive('settings')}
@@ -375,7 +387,7 @@ export default function App() {
             {active === 'settings' && (
               <SettingsView
                 styles={styles} settings={settings} updateSettings={updateSettings} setSettings={setSettings}
-                setAboutOpen={setAboutOpen} tools={tools} toolsInstalling={toolsInstalling}
+                tools={tools} toolsInstalling={toolsInstalling}
                 onInstallTools={installTools}
               />
             )}
@@ -386,27 +398,6 @@ export default function App() {
           </div>
       </div>
 
-      <Dialog open={aboutOpen} onOpenChange={(_e, d) => setAboutOpen(d.open)}>
-        <DialogSurface>
-          <DialogTitle>About</DialogTitle>
-          <DialogBody>
-            <DialogContent>
-              <div className={styles.row} style={{ marginBottom: 10 }}>
-                <InfoRegular style={{ fontSize: 28, color: tokens.colorBrandForeground1 }} />
-                <Text weight="semibold" size={400}>RetroRIP</Text>
-              </div>
-              <Text>This project was created with AI tools by: Mr Knight.</Text>
-              <br />
-              <Text>October 2026.</Text>
-            </DialogContent>
-            <DialogActions>
-              <DialogTrigger disableButtonEnhancement>
-                <Button appearance="primary">OK</Button>
-              </DialogTrigger>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
     </FluentProvider>
   );
 }
@@ -719,7 +710,7 @@ function LibraryView({ styles, settings, libraryFiles, libraryFolder, setLibrary
   );
 }
 
-function SettingsView({ styles, settings, updateSettings, setSettings, setAboutOpen, tools, toolsInstalling, onInstallTools }) {
+function SettingsView({ styles, settings, updateSettings, setSettings, tools, toolsInstalling, onInstallTools }) {
   const [updating, setUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState('');
   const pick = async (key) => {
@@ -819,10 +810,21 @@ function SettingsView({ styles, settings, updateSettings, setSettings, setAboutO
       </Card>
 
       <Card className={styles.card}>
-        <div className={styles.row}>
-          <Button className={styles.accentButton} icon={<InfoRegular />} onClick={() => setAboutOpen(true)}>About</Button>
-          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>(i)</Text>
+        <Title3>About</Title3>
+        <div className={styles.row} style={{ marginTop: 10 }}>
+          <img src={appIcon} alt="" draggable={false} style={{ width: 32, height: 32, borderRadius: 7 }} />
+          <Text weight="semibold" size={400}>RetroRIP</Text>
+          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>v1.1</Text>
         </div>
+        <Text style={{ display: 'block', marginTop: 8 }}>
+          Made by Mr KNIGHT
+        </Text>
+        <Text style={{ display: 'block' }}>
+          Made possible with AI tools.
+        </Text>
+        <Text style={{ display: 'block' }}>
+          October 2026
+        </Text>
       </Card>
     </div>
   );

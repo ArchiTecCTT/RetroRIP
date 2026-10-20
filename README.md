@@ -3,10 +3,15 @@
 A lightweight Windows 11 desktop app for converting YouTube links to **MP3, MP4, AVI, WAV, or FLAC** — wrapped in a native Fluent UI with real Mica/Acrylic materials, so it blends right into Windows 11.
 
 ## Screenshots
-<img width="1180" height="756" alt="Screenshot 2026-10-16 224756" src="https://github.com/user-attachments/assets/52ce5a0d-2fde-404a-a90f-0839cea3096a" />
-<img width="1176" height="760" alt="Screenshot 2026-10-16 224743" src="https://github.com/user-attachments/assets/ed70c28b-e72e-433e-b4e8-74f20388e4a8" />
-<img width="1176" height="758" alt="Screenshot 2026-10-16 224733" src="https://github.com/user-attachments/assets/f3f48abe-a87a-414e-a575-65619c04c386" />
-<img width="1919" height="1079" alt="Screenshot 2026-10-16 224715" src="https://github.com/user-attachments/assets/d9a34749-188d-4ef9-bd40-d3feb829d31d" />
+
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224058" src="https://github.com/user-attachments/assets/9400e987-8108-4fca-ab15-5d077f0f9e53" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224053" src="https://github.com/user-attachments/assets/044c544b-b501-456b-aed6-4790d2267490" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224047" src="https://github.com/user-attachments/assets/f3702da7-a5d5-4ab2-983b-6eb93a060516" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224033" src="https://github.com/user-attachments/assets/12c4bf44-9f6d-4825-ab32-674208ca818b" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224025" src="https://github.com/user-attachments/assets/801153f0-7912-45a6-b453-3c35ab115b85" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224015" src="https://github.com/user-attachments/assets/d06fd76d-16de-44a8-8fcf-514aaea02695" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 224011" src="https://github.com/user-attachments/assets/6afec171-bc38-4965-80bf-24684a22f7dc" />
+<img width="1919" height="1079" alt="Screenshot 2026-10-19 221308" src="https://github.com/user-attachments/assets/1c0a0f72-592f-4674-b241-0e4fe7630c37" />
 
 
 Downloads are powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/), which RetroRIP fetches automatically on first launch.
@@ -23,7 +28,7 @@ Downloads are powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg]
 
 ## Download (ready to run)
 
-Download `RetroRIP-1.0.0.exe` from the Releases page and double-click it — it's a portable build, no installation required.
+Download `RetroRIP-1.1.0.exe` from the Releases page and double-click it — it's a portable build, no installation required.
 
 > On first launch Windows SmartScreen may warn that the app is unsigned: choose **More info → Run anyway**. RetroRIP will then download yt-dlp and ffmpeg into its app-data folder (checking each download against its published SHA-256 checksum), so the first start needs an internet connection.
 
@@ -67,7 +72,7 @@ RetroRIP is a tool for downloading media you own or have permission to download.
 
 ## Credits
 
-This project was created with AI tools by **Mr Knight** — October 2026.
+Made by **Mr KNIGHT** · Made possible with AI tools. · October 2026
 
 ## Support Development
 
@@ -78,3 +83,7 @@ future development, voluntary donations are welcome.
 
 Donations are entirely optional and are not required
 to download or use this application.
+
+## License
+
+[GNU GPL-3.0](LICENSE) © 2026 Mr Knight
